@@ -6,15 +6,17 @@ from pydantic import BaseModel
 from typing import Annotated, Optional, List
 from datetime import date
 
-#setup sqlite database
 
+# setup sqlite database
 db_url = "sqlite:///./database.db"
 engine = create_engine(db_url)
 SessionLocal = sessionmaker(bind=engine, autocommit=False, autoflush=False)
 Base = declarative_base()
 
-#create models for database
 
+# create models for database
+
+# users model
 class User(Base):
     __tablename__ = "users"
     user_id = Column(Integer, primary_key=True)
@@ -23,6 +25,8 @@ class User(Base):
     membership_date = Column(String)
     borrowed_books = relationship("BorrowedBooks", back_populates="user")
 
+
+# books model
 class Book(Base):
     __tablename__ = "books"
     book_id = Column(Integer, primary_key=True)
@@ -33,6 +37,8 @@ class Book(Base):
     details = relationship("BookDetails", back_populates="book")
     borrowed_books = relationship("BorrowedBooks", back_populates="book")
 
+
+# book_details model
 class BookDetails(Base):
     __tablename__ = "book_details"
     details_id = Column(Integer, primary_key=True)
@@ -42,6 +48,8 @@ class BookDetails(Base):
     language = Column(String)
     book = relationship("Book", back_populates="details")
 
+
+# borrowed_books model
 class BorrowedBooks(Base):
     __tablename__ = "borrowed_books"
     user_id = Column(Integer, ForeignKey("users.user_id"), primary_key=True)
@@ -51,6 +59,7 @@ class BorrowedBooks(Base):
     user = relationship("User", back_populates="borrowed_books")
     book = relationship("Book", back_populates="borrowed_books")
 
+
 # Pydantic models for validation
 
 class UserBase(BaseModel):
@@ -58,11 +67,13 @@ class UserBase(BaseModel):
     email: str
     membership_date: str
 
+
 class BookBase(BaseModel):
     title: str
     isbn: str
     published_date: str
     genre: str
+
 
 class BookDetailsUpdate(BaseModel):
     number_of_pages: Optional[int]
@@ -73,8 +84,10 @@ class BookDetailsUpdate(BaseModel):
 # create all tables and columns
 Base.metadata.create_all(bind=engine)
 
-#create fastapi app
+
+# create fastapi app
 app = FastAPI()
+
 
 # dependency to connect to database
 def get_db():
@@ -84,10 +97,13 @@ def get_db():
     finally:
         db.close()
 
+
 db_dependency = Annotated[Session, Depends(get_db)]
 
-#endpoints
 
+# endpoints
+
+# for root endpoint
 @app.get("/")
 def home():
     message = {
@@ -95,6 +111,8 @@ def home():
     }
     return message
 
+
+# to create user
 @app.post("/user/create/")
 def create_user(user: UserBase, db: db_dependency):
     db_user = User(name=user.name,
@@ -106,11 +124,15 @@ def create_user(user: UserBase, db: db_dependency):
     db.refresh(db_user)
     return db_user
 
+
+# to list all users
 @app.get("/user/all/")
 def all_users_list(db: db_dependency):
     result = db.query(User).all()
     return result
 
+
+# to get user by id
 @app.get("/user/{user_id}/")
 def get_user_by_id(user_id: int, db: db_dependency):
     result = db.query(User).filter(User.user_id == user_id).first()
@@ -119,6 +141,8 @@ def get_user_by_id(user_id: int, db: db_dependency):
                             detail="User not founnd.")
     return result
 
+
+# to create book
 @app.post("/book/create/")
 def create_book(book: BookBase, db: db_dependency):
     db_book = Book(title=book.title,
@@ -131,11 +155,15 @@ def create_book(book: BookBase, db: db_dependency):
     db.refresh(db_book)
     return db_book
 
+
+# to list all books
 @app.get("/book/all/")
 def all_book_list(db: db_dependency):
     result = db.query(Book).all()
     return result
 
+
+# to get book by id
 @app.get("/book/{book_id}/")
 def get_book_by_id(book_id: int, db: db_dependency):
     result = db.query(Book).filter(Book.book_id == book_id).first()
@@ -144,6 +172,8 @@ def get_book_by_id(book_id: int, db: db_dependency):
                             detail="Book not found.")
     return result
 
+
+# to update book details
 @app.put("/book/{book_id}/details/")
 def update_book_details(book_id: int, details: BookDetailsUpdate, db: db_dependency):
     book = db.query(Book).filter(Book.book_id == book_id).first()
@@ -151,20 +181,27 @@ def update_book_details(book_id: int, details: BookDetailsUpdate, db: db_depende
         raise HTTPException(status_code=404,
                             detail="Book not found.")
 
-    existing_details = db.query(BookDetails).filter(BookDetails.book_id == book_id).first()
+    existing_details = db.query(BookDetails).filter(
+        BookDetails.book_id == book_id).first()
     if existing_details:
         existing_details.number_of_pages = details.number_of_pages
         existing_details.publisher = details.publisher
         existing_details.language = details.language
     else:
-        # details.book_id = book_id
-        new_details = BookDetails(**details.dict(), book_id=book_id)
+        new_details = BookDetails(
+            book_id=book_id,
+            number_of_pages=details.number_of_pages,
+            publisher=details.publisher,
+            language=details.language
+        )
         db.add(new_details)
 
     db.commit()
     db.refresh(existing_details)
     return existing_details
 
+
+# to borrow a  book
 @app.post("/borrowed-books/borrow/")
 def borrow_book(user_id: int, book_id: int, db: db_dependency):
     user = db.query(User).filter(User.user_id == user_id).first()
@@ -174,12 +211,15 @@ def borrow_book(user_id: int, book_id: int, db: db_dependency):
         raise HTTPException(status_code=404,
                             detail="User or Book not vfound.")
 
-    borrowed_book = BorrowedBooks(user_id=user_id, book_id=book_id, borrow_date=date.today())
+    borrowed_book = BorrowedBooks(
+        user_id=user_id, book_id=book_id, borrow_date=date.today())
     db.add(borrowed_book)
     db.commit()
     db.refresh(borrowed_book)
     return borrowed_book
 
+
+# to return a book
 @app.put("/borrowed-books/return/")
 def return_book(user_id: int, book_id: int, db: db_dependency):
     borrowed_book = (db.query(BorrowedBooks).
@@ -196,6 +236,8 @@ def return_book(user_id: int, book_id: int, db: db_dependency):
     db.refresh(borrowed_book)
     return borrowed_book
 
+
+# to list all borrowed books
 @app.get("/borrowed-books/all/")
 def list_all_borrowed_books(db: db_dependency):
     result = db.query(BorrowedBooks).all()
