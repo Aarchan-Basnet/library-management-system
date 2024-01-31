@@ -13,7 +13,12 @@ Welcome to the Library Management System API! This API allows you to manage user
    ```
 
 2. **Install Dependencies:**
-   pip install -r requirements.txt
+    ```bash
+    pip install -r requirements.txt
+    ```
 
 3. **Run Fastapi Application:**
-   uvicorn main:app --reload
+    ```bash
+       uvicorn main:app --reload
+    ```
+
