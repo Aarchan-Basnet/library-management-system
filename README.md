@@ -7,18 +7,18 @@ Welcome to the Library Management System API! This API allows you to manage user
 1. **Clone the Repository:**
 
    ```bash
-   git clone https://github.com/yourusername/library-management-api.git
+   git clone https://github.com/Aarchan-Basnet/library-management-system.git
    cd library-management-api
 
    ```
 
 2. **Install Dependencies:**
-    ```bash
-    pip install -r requirements.txt
-    ```
+
+   ```bash
+   pip install -r requirements.txt
+   ```
 
 3. **Run Fastapi Application:**
-    ```bash
-       uvicorn main:app --reload
-    ```
-
+   ```bash
+      uvicorn main:app --reload
+   ```
